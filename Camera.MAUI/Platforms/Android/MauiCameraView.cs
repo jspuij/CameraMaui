@@ -270,45 +270,58 @@ internal class MauiCameraView : GridLayout
         return result;
     }
 
-    private async void StartPreview()
+    private void StartPreview()
     {
-        while (textureView.SurfaceTexture == null)
+        try
         {
-            await Task.Delay(100);
-        }
-        SurfaceTexture texture = textureView.SurfaceTexture;
-        texture.SetDefaultBufferSize(videoSize.Width, videoSize.Height);
+            while (textureView.SurfaceTexture == null)
+            {
+                Thread.Sleep(100);
+            }
 
-        previewBuilder = cameraDevice.CreateCaptureRequest(recording ? CameraTemplate.Record : CameraTemplate.Preview);
-        var surfaces = new List<OutputConfiguration>();
-        var surfaces26 = new List<Surface>();
-        var previewSurface = new Surface(texture);
-        surfaces.Add(new OutputConfiguration(previewSurface));
-        surfaces26.Add(previewSurface);
-        previewBuilder.AddTarget(previewSurface);
-        if (imgReader != null)
-        {
-            surfaces.Add(new OutputConfiguration(imgReader.Surface));
-            surfaces26.Add(imgReader.Surface);
-        }
-        if (mediaRecorder != null)
-        {
-            surfaces.Add(new OutputConfiguration(mediaRecorder.Surface));
-            surfaces26.Add(mediaRecorder.Surface);
-            previewBuilder.AddTarget(mediaRecorder.Surface);
-        }
+            SurfaceTexture texture = textureView.SurfaceTexture;
+            if (texture == null || videoSize == null || cameraDevice == null)
+            {
+                return;
+            }
 
-        sessionCallback = new PreviewCaptureStateCallback(this);
-        if (OperatingSystem.IsAndroidVersionAtLeast(28))
-        {
-            SessionConfiguration config = new((int)SessionType.Regular, surfaces, CameraExecutor, sessionCallback);
-            cameraDevice.CreateCaptureSession(config);
-        }
-        else
-        {
+            texture.SetDefaultBufferSize(videoSize.Width, videoSize.Height);
+
+            previewBuilder = cameraDevice.CreateCaptureRequest(recording ? CameraTemplate.Record : CameraTemplate.Preview);
+            var surfaces = new List<OutputConfiguration>();
+            var surfaces26 = new List<Surface>();
+            var previewSurface = new Surface(texture);
+            surfaces.Add(new OutputConfiguration(previewSurface));
+            surfaces26.Add(previewSurface);
+            previewBuilder.AddTarget(previewSurface);
+            if (imgReader != null)
+            {
+                surfaces.Add(new OutputConfiguration(imgReader.Surface));
+                surfaces26.Add(imgReader.Surface);
+            }
+            if (mediaRecorder != null)
+            {
+                surfaces.Add(new OutputConfiguration(mediaRecorder.Surface));
+                surfaces26.Add(mediaRecorder.Surface);
+                previewBuilder.AddTarget(mediaRecorder.Surface);
+            }
+
+            sessionCallback = new PreviewCaptureStateCallback(this);
+            if (OperatingSystem.IsAndroidVersionAtLeast(28))
+            {
+                SessionConfiguration config = new((int)SessionType.Regular, surfaces, CameraExecutor, sessionCallback);
+                cameraDevice.CreateCaptureSession(config);
+            }
+            else
+            {
 #pragma warning disable CS0618 // El tipo o el miembro están obsoletos
-            cameraDevice.CreateCaptureSession(surfaces26, sessionCallback, null);
+                cameraDevice.CreateCaptureSession(surfaces26, sessionCallback, null);
 #pragma warning restore CS0618 // El tipo o el miembro están obsoletos
+            }
+        }
+        catch (Exception ex)
+        {
+            DebugOut.WriteLine($"StartPreview error: {ex.Message}");
         }
     }
     private void UpdatePreview()
